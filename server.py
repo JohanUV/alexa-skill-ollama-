@@ -1,10 +1,11 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
+import os
 import urllib.request
 import urllib.error
 
-OLLAMA_HOST = "http://localhost:11434"
-OLLAMA_MODEL = "qwen3:0.6b"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
 SYSTEM_PROMPT = (
     "Eres un asistente de voz integrado en Alexa. "
@@ -13,45 +14,28 @@ SYSTEM_PROMPT = (
 )
 
 
-def warmup_model():
-    print("Precargando modelo en memoria...")
-    try:
-        payload = json.dumps({
-            "model": OLLAMA_MODEL,
-            "keep_alive": "60m",
-            "messages": [{"role": "user", "content": "hola /no_think"}],
-            "stream": False,
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            f"{OLLAMA_HOST}/api/chat", data=payload,
-            headers={"Content-Type": "application/json"}, method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            resp.read()
-        print("Modelo precargado y listo!")
-    except Exception as exc:
-        print(f"Error precargando modelo: {exc}")
-
-
-def call_ollama(user_message):
-    url = f"{OLLAMA_HOST}/api/chat"
+def call_ai(user_message):
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+    }
     payload = json.dumps({
-        "model": OLLAMA_MODEL,
-        "keep_alive": "60m",
+        "model": OPENAI_MODEL,
+        "max_tokens": 150,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message + " /no_think"},
+            {"role": "user", "content": user_message},
         ],
-        "stream": False,
     }).encode("utf-8")
 
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=8) as resp:
             body = json.loads(resp.read().decode("utf-8"))
-            return body["message"]["content"]
+            return body["choices"][0]["message"]["content"]
     except (urllib.error.URLError, KeyError, IndexError) as exc:
-        print(f"Error calling Ollama: {exc}")
+        print(f"Error calling OpenAI: {exc}")
         return "Lo siento, no pude procesar tu solicitud en este momento."
 
 
@@ -87,7 +71,7 @@ def handle_request(event):
             query = slots.get("query", {}).get("value", "")
             if not query:
                 return build_response("No escuche tu pregunta. Puedes repetirla?", should_end=False)
-            answer = call_ollama(query)
+            answer = call_ai(query)
             return build_response(answer, should_end=False)
 
         if intent_name in ("AMAZON.StopIntent", "AMAZON.CancelIntent"):
@@ -126,9 +110,9 @@ class AlexaHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    warmup_model()
     port = 5000
     server = HTTPServer(("0.0.0.0", port), AlexaHandler)
     print(f"Servidor Alexa corriendo en http://localhost:{port}")
+    print(f"Modelo: {OPENAI_MODEL}")
     print("Esperando requests de Alexa...")
     server.serve_forever()

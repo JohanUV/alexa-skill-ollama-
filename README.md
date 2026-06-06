@@ -1,26 +1,29 @@
-# Alexa Skill con Ollama
+# Alexa Skill con IA
 
-Skill de Alexa que usa un modelo de IA local (Ollama) como backend para responder preguntas. Toda la IA corre en tu propia maquina, sin costos de API.
+Skill de Alexa que usa IA para responder preguntas por voz. Soporta OpenAI (gpt-4o-mini) para respuestas rapidas o Ollama para IA 100% local.
 
 ## Arquitectura
 
 ```
-Usuario → Alexa → ngrok (HTTPS) → server.py → Ollama (qwen3:0.6b) → Respuesta
+Usuario → Alexa → ngrok (HTTPS) → server.py → OpenAI API (gpt-4o-mini) → Respuesta
 ```
 
-Para testing local con Terraform:
+Para testing local con Terraform + Ollama:
 ```
-server.py / Lambda → Floci (LocalStack) → Ollama
+Lambda → Floci (LocalStack) → Ollama (qwen3)
 ```
 
 ## Requisitos
 
 - [Python 3.10+](https://www.python.org/downloads/)
+- [ngrok](https://ngrok.com/download) (cuenta gratuita)
+- [Cuenta de desarrollador de Alexa](https://developer.amazon.com/alexa/console/ask)
+- API Key de [OpenAI](https://platform.openai.com/api-keys)
+
+Para testing local (opcional):
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
 - [Terraform](https://developer.hashicorp.com/terraform/downloads)
 - [Ollama](https://ollama.com/download)
-- [ngrok](https://ngrok.com/download) (cuenta gratuita)
-- [Cuenta de desarrollador de Alexa](https://developer.amazon.com/alexa/console/ask)
 
 ## Instalacion
 
@@ -31,37 +34,54 @@ git clone https://github.com/JohanUV/alexa-skill-ollama-.git
 cd alexa-skill-ollama-
 ```
 
-### 2. Instalar el modelo de Ollama
+### 2. Configurar ngrok
 
-```powershell
-ollama pull qwen3:0.6b
-```
-
-### 3. Configurar ngrok
-
-Crea una cuenta gratuita en [ngrok.com](https://ngrok.com), obtén tu authtoken y configúralo:
+Crea una cuenta gratuita en [ngrok.com](https://ngrok.com), obten tu authtoken y configuralo:
 
 ```powershell
 ngrok config add-authtoken TU_AUTH_TOKEN
 ```
 
+### 3. Configurar el Skill en Alexa Developer Console
+
+1. Ir a [developer.amazon.com/alexa/console/ask](https://developer.amazon.com/alexa/console/ask)
+2. **Create Skill** → Nombre: `Asistente IA` → Idioma: `Spanish (Mexico)` → **Custom** → **Provision your own** → **Start from Scratch**
+3. En **Interaction Model → JSON Editor**, pegar el contenido de `skill-model/interaction-model.json`
+4. **Save** → **Build skill**
+5. Ir a **Endpoint** → seleccionar **HTTPS**
+6. En **Default Region**, pegar la URL de ngrok (se obtiene en el paso siguiente)
+7. SSL Certificate: **"My development endpoint is a sub-domain of a domain that has a wildcard certificate from a certificate authority"**
+8. **Save Endpoints**
+9. Ir a **Test** → cambiar de "Off" a **"Development"**
+
 ## Uso
 
-### Opcion A: Conectar con Alexa real (ngrok)
+### Inicio rapido
 
-1. **Iniciar el servidor:**
+```powershell
+.\start.ps1 -ApiKey "tu-api-key-de-openai"
+```
+
+Esto inicia el servidor y ngrok automaticamente. Copia la URL que muestra y pegala en el endpoint de Alexa.
+
+### Inicio manual
+
+1. **Configurar la API key:**
+```powershell
+$env:OPENAI_API_KEY = "tu-api-key-de-openai"
+```
+
+2. **Iniciar el servidor:**
 ```powershell
 python server.py
 ```
 
-2. **Exponer con ngrok (en otra terminal):**
+3. **Exponer con ngrok (en otra terminal):**
 ```powershell
 ngrok http 5000
 ```
 
-3. **Copiar la URL HTTPS** que ngrok genera (ej: `https://xxxx-xxxx.ngrok-free.dev`)
-
-4. **Configurar el skill en la consola de Alexa** (ver seccion abajo)
+4. **Copiar la URL HTTPS** que ngrok genera (ej: `https://xxxx-xxxx.ngrok-free.dev`) y pegarla en el endpoint de Alexa
 
 5. **Hablar con Alexa:**
 ```
@@ -71,38 +91,16 @@ ngrok http 5000
 "dime quien invento el telefono"
 ```
 
-### Opcion B: Testing local con Floci (LocalStack)
+### Testing local con Floci (sin Alexa)
 
-1. **Deploy automatico:**
+Requiere Docker, Terraform y Ollama instalados.
+
 ```powershell
+ollama pull qwen3:0.6b
 .\deploy.ps1
-```
-
-2. **Ejecutar tests:**
-```powershell
 .\test-skill.ps1
 .\test-skill.ps1 -Pregunta "que es la computacion cuantica"
 ```
-
-3. **Test manual con curl:**
-```bash
-curl -s -X POST "http://localhost:4566/2015-03-31/functions/alexa-skill-ia/invocations" \
-  -H "Content-Type: application/json" \
-  -d '{"request":{"type":"IntentRequest","intent":{"name":"AskAIIntent","slots":{"query":{"value":"que es la IA"}}}}}'
-```
-
-## Configurar el Skill en Alexa Developer Console
-
-1. Ir a [developer.amazon.com/alexa/console/ask](https://developer.amazon.com/alexa/console/ask)
-2. **Create Skill** → Nombre: `Asistente IA` → Idioma: `Spanish (Mexico)` → **Custom** → **Provision your own** → **Start from Scratch**
-3. En **Interaction Model → JSON Editor**, pegar el contenido de `skill-model/interaction-model.json`
-4. **Save** → **Build skill**
-5. Ir a **Endpoint** → seleccionar **HTTPS**
-6. En **Default Region**, pegar la URL de ngrok (ej: `https://xxxx-xxxx.ngrok-free.dev`)
-7. SSL Certificate: **"My development endpoint is a sub-domain of a domain that has a wildcard certificate from a certificate authority"**
-8. **Save Endpoints**
-9. Ir a **Test** → cambiar de "Off" a **"Development"**
-10. Probar escribiendo: `abre inteligencia artificial`
 
 ## Frases de ejemplo
 
@@ -121,13 +119,14 @@ curl -s -X POST "http://localhost:4566/2015-03-31/functions/alexa-skill-ia/invoc
 
 ```
 alexa-skill-ollama/
-├── server.py                       # Servidor HTTPS para Alexa (produccion)
+├── server.py                       # Servidor para Alexa (OpenAI)
+├── start.ps1                       # Script de inicio rapido
 ├── lambda/
-│   └── lambda_function.py          # Handler Lambda (testing con Floci)
+│   └── lambda_function.py          # Handler Lambda (testing con Ollama)
 ├── terraform/
 │   ├── main.tf                     # Provider AWS (Floci/LocalStack)
 │   ├── lambda.tf                   # Recurso Lambda
-│   ├── variables.tf                # Variables (ollama_host, ollama_model)
+│   ├── variables.tf                # Variables de configuracion
 │   ├── outputs.tf                  # ARN del Lambda
 │   └── terraform.tfvars.example    # Ejemplo de configuracion
 ├── skill-model/
@@ -138,9 +137,17 @@ alexa-skill-ollama/
 └── test-skill.ps1                  # Script de pruebas
 ```
 
+## Costos
+
+| Servicio | Costo |
+|---|---|
+| OpenAI gpt-4o-mini | ~$0.15 por cada 1000 preguntas |
+| ngrok | Gratis (plan free) |
+| Alexa Developer | Gratis |
+| Ollama (testing local) | Gratis |
+
 ## Notas importantes
 
-- **Tu PC debe estar encendida** para que el skill funcione (Ollama corre localmente)
+- **Tu PC debe estar encendida** con `server.py` y `ngrok` corriendo para que el skill funcione
 - **La URL de ngrok cambia** cada vez que lo reinicias (plan gratuito). Actualiza el endpoint en la consola de Alexa cuando cambie
-- **Alexa tiene un timeout de ~8 segundos**. Preguntas muy complejas pueden no alcanzar a responder
-- El modelo `qwen3:0.6b` es el mas rapido (~4-6s por respuesta). Si tienes GPU, puedes usar `qwen3:1.7b` para mejor calidad
+- **No subas tu API key a git**. Usa la variable de entorno `OPENAI_API_KEY` o el script `start.ps1`
