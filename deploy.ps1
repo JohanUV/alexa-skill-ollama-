@@ -31,15 +31,30 @@ if ($retry -ge $maxRetries) {
     exit 1
 }
 
-# 3. Terraform init + apply
-Write-Host "`n[3/4] Desplegando infraestructura con Terraform..." -ForegroundColor Yellow
+# 3. Verificar que Ollama este corriendo
+Write-Host "`n[3/4] Verificando Ollama..." -ForegroundColor Yellow
+try {
+    $ollamaResponse = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -ErrorAction Stop
+    $models = ($ollamaResponse.Content | ConvertFrom-Json).models.name
+    if ($models -contains "qwen3:1.7b") {
+        Write-Host "Ollama con qwen3:1.7b disponible!" -ForegroundColor Green
+    } else {
+        Write-Host "Modelo qwen3:1.7b no encontrado. Descargando..." -ForegroundColor Yellow
+        ollama pull qwen3:1.7b
+    }
+} catch {
+    Write-Host "Ollama no esta corriendo en localhost:11434" -ForegroundColor Red
+    Write-Host "Inicia Ollama antes de continuar." -ForegroundColor Red
+    exit 1
+}
+
+# 4. Terraform init + apply
+Write-Host "`n[4/4] Desplegando infraestructura con Terraform..." -ForegroundColor Yellow
 Push-Location terraform
 
 if (-not (Test-Path "terraform.tfvars")) {
-    Write-Host "AVISO: No se encontro terraform.tfvars" -ForegroundColor Red
-    Write-Host "Copia terraform.tfvars.example a terraform.tfvars y pon tu API key de Anthropic" -ForegroundColor Red
-    Pop-Location
-    exit 1
+    Copy-Item "terraform.tfvars.example" "terraform.tfvars"
+    Write-Host "Se creo terraform.tfvars desde el ejemplo." -ForegroundColor Yellow
 }
 
 terraform init
@@ -50,31 +65,21 @@ if (-not $?) { Pop-Location; exit 1 }
 
 Pop-Location
 
-# 4. Verificar el Lambda
-Write-Host "`n[4/4] Verificando despliegue..." -ForegroundColor Yellow
+# Verificar el Lambda
+Write-Host "`nVerificando despliegue..." -ForegroundColor Yellow
 
-$testEvent = @{
-    request = @{
-        type = "LaunchRequest"
-    }
-} | ConvertTo-Json -Compress
-
-aws --endpoint-url=http://localhost:4566 lambda invoke `
-    --function-name alexa-skill-ia `
-    --payload $testEvent `
-    --cli-binary-format raw-in-base64-out `
-    response.json 2>$null
-
-if (Test-Path response.json) {
-    Write-Host "`nRespuesta del Lambda:" -ForegroundColor Green
-    Get-Content response.json | ConvertFrom-Json | ConvertTo-Json -Depth 5
-    Remove-Item response.json
-} else {
+$testPayload = '{"request":{"type":"LaunchRequest"}}'
+try {
+    $result = Invoke-WebRequest -Uri "http://localhost:4566/2015-03-31/functions/alexa-skill-ia/invocations" `
+        -Method POST -Body $testPayload -ContentType "application/json" -UseBasicParsing -ErrorAction Stop
+    $speech = ($result.Content | ConvertFrom-Json).response.outputSpeech.text
+    Write-Host "`nLambda responde: $speech" -ForegroundColor Green
+} catch {
     Write-Host "No se pudo invocar el Lambda" -ForegroundColor Red
 }
 
 Write-Host "`n=== Deploy completado ===" -ForegroundColor Cyan
-Write-Host "Lambda ARN: arn:aws:lambda:us-east-1:000000000000:function:alexa-skill-ia"
-Write-Host "Floci endpoint: http://localhost:4566"
-Write-Host "`nPara probar manualmente:"
-Write-Host '  aws --endpoint-url=http://localhost:4566 lambda invoke --function-name alexa-skill-ia --payload "{\"request\":{\"type\":\"LaunchRequest\"}}" out.json && cat out.json'
+Write-Host "Lambda: arn:aws:lambda:us-east-1:000000000000:function:alexa-skill-ia"
+Write-Host "Floci:  http://localhost:4566"
+Write-Host "Ollama: http://localhost:11434"
+Write-Host "`nPara probar: .\test-skill.ps1"
