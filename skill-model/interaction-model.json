@@ -1,0 +1,48 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "inteligencia artificial",
+      "intents": [
+        {
+          "name": "AskAIIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "pregúntale {query}",
+            "pregunta {query}",
+            "dime {query}",
+            "quiero saber {query}",
+            "qué sabes sobre {query}",
+            "responde {query}",
+            "consulta {query}",
+            "investiga {query}",
+            "explícame {query}",
+            "cuéntame sobre {query}",
+            "ayúdame con {query}",
+            "{query}"
+          ]
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        }
+      ]
+    }
+  }
+}

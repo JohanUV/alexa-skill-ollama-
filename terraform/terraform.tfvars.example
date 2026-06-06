@@ -1,0 +1,2 @@
+ollama_host  = "http://host.docker.internal:11434"
+ollama_model = "qwen3:1.7b"

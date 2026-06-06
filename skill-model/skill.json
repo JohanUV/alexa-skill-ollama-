@@ -1,0 +1,28 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "es-ES": {
+          "summary": "Asistente con inteligencia artificial powered by Claude",
+          "examplePhrases": [
+            "Alexa, abre inteligencia artificial",
+            "pregúntale cuál es la capital de Francia",
+            "dime qué es la computación cuántica"
+          ],
+          "name": "Asistente IA",
+          "description": "Un skill de Alexa que usa Claude de Anthropic para responder preguntas con inteligencia artificial."
+        }
+      },
+      "isAvailableWorldwide": false,
+      "testingInstructions": "Abrir el skill y hacer una pregunta."
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "arn:aws:lambda:us-east-1:000000000000:function:alexa-skill-ia"
+        }
+      }
+    },
+    "manifestVersion": "1.0"
+  }
+}

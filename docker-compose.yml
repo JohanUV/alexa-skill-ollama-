@@ -1,0 +1,16 @@
+services:
+  floci:
+    image: localstack/localstack:3.8
+    container_name: floci
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=lambda,iam,sts
+      - LAMBDA_EXECUTOR=docker
+      - DEBUG=1
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+      - floci_data:/var/lib/localstack
+
+volumes:
+  floci_data:
