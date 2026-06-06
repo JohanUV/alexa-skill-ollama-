@@ -23,7 +23,22 @@
             "explícame {query}",
             "cuéntame sobre {query}",
             "ayúdame con {query}",
-            "{query}"
+            "oye {query}",
+            "a ver {query}",
+            "mira {query}",
+            "bueno {query}",
+            "ok {query}",
+            "y {query}",
+            "pues {query}",
+            "sobre {query}",
+            "qué es {query}",
+            "quién es {query}",
+            "cómo es {query}",
+            "cuál es {query}",
+            "por qué {query}",
+            "cuánto es {query}",
+            "dónde está {query}",
+            "cuándo fue {query}"
           ]
         },
         {
